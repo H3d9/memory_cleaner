@@ -3,4 +3,4 @@
 此版完全按照原版的内部逻辑重写所有功能，我自己还额外加了清理内存等待链（适用于游戏玩家）。<br>
 
 ## 示意图
-![img]https://github.com/H3d9/memory_cleaner/blob/main/demo.gif
+![image](https://github.com/H3d9/memory_cleaner/blob/main/demo.gif)
