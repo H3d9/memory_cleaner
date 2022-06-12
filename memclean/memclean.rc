@@ -1,0 +1,127 @@
+// Microsoft Visual C++ generated resource script.
+//
+#include "resource.h"
+
+#define APSTUDIO_READONLY_SYMBOLS
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 2 resource.
+//
+#include "winres.h"
+
+/////////////////////////////////////////////////////////////////////////////
+#undef APSTUDIO_READONLY_SYMBOLS
+
+/////////////////////////////////////////////////////////////////////////////
+// 中文(简体，中国) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_CHS)
+LANGUAGE LANG_CHINESE, SUBLANG_CHINESE_SIMPLIFIED
+#pragma code_page(936)
+
+#ifdef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// TEXTINCLUDE
+//
+
+1 TEXTINCLUDE 
+BEGIN
+    "resource.h\0"
+END
+
+2 TEXTINCLUDE 
+BEGIN
+    "#include ""winres.h""\r\n"
+    "\0"
+END
+
+3 TEXTINCLUDE 
+BEGIN
+    "\r\n"
+    "\0"
+END
+
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Icon
+//
+
+// Icon with lowest ID value placed first to ensure application icon
+// remains consistent on all systems.
+IDI_ICON1               ICON                    "logo.ico"
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_DIALOG1 DIALOGEX 0, 0, 252, 183
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_MINIMIZEBOX | WS_CAPTION | WS_SYSMENU
+CAPTION "Memory Cleaner"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    PUSHBUTTON      "裁剪进程工作集",IDC_BUTTON1,158,79,72,14
+    LTEXT           "Memory Cleaner 免更新重制版            RemasteRed by: H3d9",IDC_STATIC,9,9,226,13
+    ICON            IDI_ICON1,IDC_STATIC,13,25,20,20
+    LTEXT           "内存用量：",IDC_STATIC1,13,51,204,8
+    LTEXT           "页面文件：",IDC_STATIC2,13,64,204,8
+    PUSHBUTTON      "清理系统缓存",IDC_BUTTON2,158,95,72,14
+    CONTROL         "若内存用量超出80%，裁剪进程工作集",IDC_CHECK1,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,10,132,186,10
+    CONTROL         "每过5分钟，裁剪进程工作集",IDC_CHECK2,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,10,82,140,10
+    CONTROL         "若内存用量超出80%，清理系统缓存",IDC_CHECK3,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,10,148,186,10
+    CONTROL         "每过5分钟，清理系统缓存",IDC_CHECK4,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,10,98,140,10
+    PUSHBUTTON      "清理StandbyList",IDC_BUTTON3,158,111,72,14
+    CONTROL         "每过5分钟，清理内存等待链",IDC_CHECK5,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,10,114,140,10
+    CONTROL         "若内存用量超出80%，清理内存等待链",IDC_CHECK6,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,10,163,185,10
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO
+BEGIN
+    IDD_DIALOG1, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 245
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 176
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// AFX_DIALOG_LAYOUT
+//
+
+IDD_DIALOG1 AFX_DIALOG_LAYOUT
+BEGIN
+    0
+END
+
+#endif    // 中文(简体，中国) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+
+#ifndef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 3 resource.
+//
+
+
+/////////////////////////////////////////////////////////////////////////////
+#endif    // not APSTUDIO_INVOKED
+
