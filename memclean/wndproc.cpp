@@ -25,7 +25,7 @@ void ShowAbout() {
 		"提示：若内存够用就不要频繁清理，否则反而会导致系统性能下降。\n\n"
 		"裁剪进程工作集 = Trim Processes' Working Set\n"
 		"清理系统缓存 = Clear System Cache\n"
-		"清理StandbyList (新增)  仅建议游戏玩家使用\n\n"
+		"清理StandbyList = 新增 听说玩游戏容易卡一下，不建议开\n\n"
 		"  原作：Koshy John\n   破解 & 重写：H3d9",
 		"Memory Cleaner 免更新重制版  RemasteRed by: @H3d9",
 		MB_OK);
@@ -125,7 +125,7 @@ INT_PTR CALLBACK DlgProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) 
 				auto result = cleanMgr.flushSystemBuffer();
 				
 				if (result >= 0) {
-					sprintf(buffer, "已清除系统缓存：%d MB。", result);
+					strcpy(buffer, "已清除系统缓存。");
 				} else {
 					sprintf(buffer, "清除系统缓存时发生错误：%x。", result);
 				}
@@ -168,6 +168,7 @@ INT_PTR CALLBACK DlgProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) 
 			} else if (LOWORD(wParam) == IDC_CHECK5) {
 				auto checked = IsDlgButtonChecked(cleanMgr.hDlg, IDC_CHECK5);
 				if (checked == BST_CHECKED) {
+					MessageBox(hDlg, "自动清理“内存等待链”的时候可能导致游戏卡一下", "提示", MB_OK | MB_SYSTEMMODAL);
 					cleanMgr.memCleanSwitches[2] = checked;
 				} else if (checked == BST_UNCHECKED) {
 					cleanMgr.memCleanSwitches[2] = checked;
@@ -196,7 +197,10 @@ INT_PTR CALLBACK DlgProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) 
 
 			} else if (LOWORD(wParam) == IDC_CHECK6) {
 				auto checked = IsDlgButtonChecked(cleanMgr.hDlg, IDC_CHECK6);
-				if (checked == BST_CHECKED || checked == BST_UNCHECKED) {
+				if (checked == BST_CHECKED) {
+					MessageBox(hDlg, "自动清理“内存等待链”的时候可能导致游戏卡一下", "提示", MB_OK | MB_SYSTEMMODAL);
+					cleanMgr.memCleanSwitches[5] = checked;
+				} else if (checked == BST_UNCHECKED) {
 					cleanMgr.memCleanSwitches[5] = checked;
 				}
 				cleanMgr.savecfg();

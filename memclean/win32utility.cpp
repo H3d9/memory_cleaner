@@ -7,6 +7,8 @@
 #include <mutex>
 #include "win32utility.h"
 
+#pragma comment(lib, "Userenv.lib")
+
 
 memcleanManager::memcleanManager() 
 	: memCleanSwitches{}, autoStart(false), hDlg(NULL), hwndPB(NULL), NtSetSystemInformation(NULL) {}
@@ -76,17 +78,24 @@ void memcleanManager::init() {
 	}
 
 
-	// get program dir.
-	char buf[1024];
-	GetModuleFileName(NULL, buf, 1024);
-	if (auto pos = strrchr(buf, '\\')) {
-		pos[0] = '\0';
-	} else {
-		MessageBox(0, "program dir invalid", 0, 0);
-		strcpy(buf, ".");
+	// get profile.
+	CHAR         buf[1024];
+	DWORD        size = 1024;
+
+	OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &hToken);
+	GetUserProfileDirectory(hToken, buf, &size);
+	CloseHandle(hToken);
+
+	profile_str = std::string(buf) + "\\AppData\\Roaming\\memclean";
+
+	DWORD pathAttr = GetFileAttributes(profile_str.c_str());
+	if ((pathAttr == INVALID_FILE_ATTRIBUTES) || !(pathAttr & FILE_ATTRIBUTE_DIRECTORY)) {
+		if (!CreateDirectory(profile_str.c_str(), NULL)) {
+			profile_str = "C:";
+		}
 	}
 
-	profile_str = std::string(buf) + "\\memclean.ini";
+	profile_str += "\\memclean.ini";
 }
 
 bool memcleanManager::loadcfg() {
@@ -169,47 +178,12 @@ int memcleanManager::flushSystemBuffer() {
 		return -1;
 	}
 
-	ULONGLONG usedPhysMem = 0;
-	ULONGLONG usedPhysMemAfter = 0;
-
-	MEMORYSTATUSEX memInfo;
-	memset(&memInfo, 0, sizeof(memInfo));
-	memInfo.dwLength = sizeof(MEMORYSTATUSEX);
-
-	GlobalMemoryStatusEx(&memInfo);
-	usedPhysMem = memInfo.ullTotalPhys - memInfo.ullAvailPhys;
-	usedPhysMem /= (1024 * 1024);
-
-
 	SYSTEM_FILECACHE_INFORMATION info;
 	ZeroMemory(&info, sizeof(info));
 	info.MinimumWorkingSet = -1;
 	info.MaximumWorkingSet = -1;
 
-	NTSTATUS ret = NtSetSystemInformation(SystemFileCacheInformation, &info, sizeof(info));
-
-	if (ret >= 0) {
-
-		Sleep(100);
-		MEMORYSTATUSEX memInfo;
-		memset(&memInfo, 0, sizeof(memInfo));
-		memInfo.dwLength = sizeof(MEMORYSTATUSEX);
-
-		GlobalMemoryStatusEx(&memInfo);
-		usedPhysMemAfter = memInfo.ullTotalPhys - memInfo.ullAvailPhys;
-		usedPhysMemAfter /= (1024 * 1024);
-
-		int optimized = (int)(usedPhysMemAfter - usedPhysMem);
-
-		if (optimized >= 0) {
-			return optimized;
-		} else {
-			return 0;
-		}
-
-	} else {
-		return -2;
-	}
+	return (int)NtSetSystemInformation(SystemFileCacheInformation, &info, sizeof(info));
 }
 
 int memcleanManager::purgeMemoryStandbyList() {
@@ -218,14 +192,31 @@ int memcleanManager::purgeMemoryStandbyList() {
 		return -1;
 	}
 
-	_SYSTEM_MEMORY_LIST_COMMAND command = MemoryPurgeStandbyList;
+	_SYSTEM_MEMORY_LIST_COMMAND command;
+	int result;
 
-	return (int)NtSetSystemInformation(SystemMemoryListInformation, &command, sizeof(command));
+	command = MemoryFlushModifiedList;
+	result = (int)NtSetSystemInformation(SystemMemoryListInformation, &command, sizeof(command));
+	if (result < 0) {
+		return result;
+	}
+
+	command = MemoryPurgeStandbyList;
+	result = (int)NtSetSystemInformation(SystemMemoryListInformation, &command, sizeof(command));
+	if (result < 0) {
+		return result;
+	}
+
+	command = MemoryPurgeLowPriorityStandbyList;
+	result = (int)NtSetSystemInformation(SystemMemoryListInformation, &command, sizeof(command));
+	if (result < 0) {
+		return result;
+	}
 }
 
 void memcleanManager::raiseMemCleanThread() {
 
-	std::thread t([this]() {
+	std::thread t([this] () {
 
 		auto lastCleanTime = time(NULL);
 
