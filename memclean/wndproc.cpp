@@ -20,6 +20,7 @@ extern memcleanManager& cleanMgr;
 
 void ShowAbout() {
 	MessageBox(0,
+		"22.6.13更新内容：增加开机自启。\n\n"
 		"说明：功能按原 Memory Cleaner 复刻，删除联网更新。\n\n"
 		"提示：若内存够用就不要频繁清理，否则反而会导致系统性能下降。\n\n"
 		"裁剪进程工作集 = Trim Processes' Working Set\n"
@@ -166,7 +167,9 @@ INT_PTR CALLBACK DlgProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) 
 
 			} else if (LOWORD(wParam) == IDC_CHECK5) {
 				auto checked = IsDlgButtonChecked(cleanMgr.hDlg, IDC_CHECK5);
-				if (checked == BST_CHECKED || checked == BST_UNCHECKED) {
+				if (checked == BST_CHECKED) {
+					cleanMgr.memCleanSwitches[2] = checked;
+				} else if (checked == BST_UNCHECKED) {
 					cleanMgr.memCleanSwitches[2] = checked;
 				}
 				cleanMgr.savecfg();
@@ -205,9 +208,9 @@ INT_PTR CALLBACK DlgProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) 
 				auto checked = IsDlgButtonChecked(cleanMgr.hDlg, IDC_CHECK7);
 				if (checked == BST_CHECKED) {
 					
-					char exePath[1024] = "\"";
-					GetModuleFileName(NULL, exePath + 1, 1023);
-					strcat(exePath, "\" --slient");
+					char exePath[1024] = {}; // "\""
+					GetModuleFileName(NULL, exePath, 1024); // + 1
+					strcat(exePath, " slient"); // \" --
 					
 					HKEY hKey;
 					if (RegOpenKeyEx(HKEY_CURRENT_USER, "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", 0, KEY_ALL_ACCESS, &hKey) == ERROR_SUCCESS) {

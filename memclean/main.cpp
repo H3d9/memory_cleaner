@@ -1,4 +1,5 @@
 #include <Windows.h>
+#include <Shlobj.h>
 #include <thread>
 #include "resource.h"
 #include "wndproc.h"
@@ -15,6 +16,13 @@ INT WINAPI WinMain(
 	_In_ LPSTR lpCmdLine,
 	_In_ int nShowCmd) {
 
+
+	if (!IsUserAnAdmin()) { // 手动触发UAC，不然不能开机自启
+		char path[1024];
+		GetModuleFileName(NULL, path, 1024);
+		ShellExecute(NULL, "runas", path, lpCmdLine, NULL, SW_SHOWNORMAL);
+		return 0;
+	}
 
 	systemMgr.setupProcessDpi();
 

@@ -29,34 +29,52 @@ memcleanManager& memcleanManager::getInstance() {
 
 void memcleanManager::init() {
 
-	// acquire privilege required.
+	// raise privilege.
 	HANDLE hToken;
-	LUID Luid;
-	TOKEN_PRIVILEGES tp;
-
 	OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &hToken);
+	
+	TOKEN_PRIVILEGES tp;
+	tp.PrivilegeCount = 1;
+	tp.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
 
 	// 1 get permission to optimize system cache
-	LookupPrivilegeValue(NULL, "SeIncreaseQuotaPrivilege", &Luid);
-	tp.PrivilegeCount = 1;
-	tp.Privileges[0].Luid = Luid;
-	tp.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
+	LookupPrivilegeValue(NULL, "SeIncreaseQuotaPrivilege", &tp.Privileges[0].Luid);
 	AdjustTokenPrivileges(hToken, FALSE, &tp, sizeof(tp), NULL, NULL);
 
 	// 2 get permission to modify memory standby list
-	LookupPrivilegeValue(NULL, "SeProfileSingleProcessPrivilege", &Luid);
-	tp.PrivilegeCount = 1;
-	tp.Privileges[0].Luid = Luid;
-	tp.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
+	LookupPrivilegeValue(NULL, "SeProfileSingleProcessPrivilege", &tp.Privileges[0].Luid);
 	AdjustTokenPrivileges(hToken, FALSE, &tp, sizeof(tp), NULL, NULL);
 
+
+	// 3 check if privileges are aquired.
+	BOOL bResult;
+
+	PRIVILEGE_SET ps;
+	ps.Control = PRIVILEGE_SET_ALL_NECESSARY;
+	ps.PrivilegeCount = 1;
+	ps.Privilege[0].Attributes = SE_PRIVILEGE_ENABLED;
+
+	LookupPrivilegeValue(NULL, "SeIncreaseQuotaPrivilege", &ps.Privilege[0].Luid);
+	PrivilegeCheck(hToken, &ps, &bResult);
+	if (!bResult) {
+		MessageBox(0, "SeIncreaseQuotaPrivilege fail", 0, 0);
+	}
+
+	LookupPrivilegeValue(NULL, "SeProfileSingleProcessPrivilege", &ps.Privilege[0].Luid);
+	PrivilegeCheck(hToken, &ps, &bResult);
+	if (!bResult) {
+		MessageBox(0, "SeProfileSingleProcessPrivilege fail", 0, 0);
+	}
+
 	CloseHandle(hToken);
+
 
 	// acquire undocumented function address.
 	HMODULE hNtdll = GetModuleHandle("ntdll.dll");
 	if (hNtdll) {
 		NtSetSystemInformation = (NtSetSystemInformation_t)GetProcAddress(hNtdll, "NtSetSystemInformation");
 	}
+
 
 	// get program dir.
 	char buf[1024];
@@ -137,7 +155,7 @@ void memcleanManager::trimProcessWorkingSet() {
 			continue;
 		}
 		if (!EmptyWorkingSet(handle)) {
-			//panic("EmptyWorkingSet false");
+			//MessageBox(0, "EmptyWorkingSet false", 0, 0);
 		}
 		CloseHandle(handle);
 	}

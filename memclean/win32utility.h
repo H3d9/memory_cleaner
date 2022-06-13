@@ -47,16 +47,16 @@ private:
 private:
 	enum _SYSTEM_INFORMATION_CLASS {
 		SystemFileCacheInformation = 21,
-		SystemMemoryListInformation = 80
+		SystemMemoryListInformation = 80 // 不弄了 memreduct就用的这个 怕卡
 	};
 
 	enum _SYSTEM_MEMORY_LIST_COMMAND {
 		MemoryCaptureAccessedBits,
 		MemoryCaptureAndResetAccessedBits,
-		MemoryEmptyWorkingSets,
-		MemoryFlushModifiedList,
+		MemoryEmptyWorkingSets, // 没弄，原版没有
+		MemoryFlushModifiedList, // 没弄，原版没有
 		MemoryPurgeStandbyList,
-		MemoryPurgeLowPriorityStandbyList,
+		MemoryPurgeLowPriorityStandbyList, // 没弄，原版没有
 		MemoryCommandMax
 	};
 
