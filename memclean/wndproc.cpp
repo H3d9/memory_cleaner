@@ -47,7 +47,7 @@ INT_PTR CALLBACK DlgProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) 
 				hDlg, (HMENU)0, systemMgr.hInstance, NULL);
 			
 			if (!cleanMgr.hwndPB) {
-				MessageBox(0, "CreateWindowEx failed", 0, 0);
+				systemMgr.panic("CreateWindowEx failed");
 				return FALSE;
 			}
 			
@@ -66,6 +66,8 @@ INT_PTR CALLBACK DlgProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) 
 			CheckDlgButton(cleanMgr.hDlg, IDC_CHECK1, cleanMgr.memCleanSwitches[3]);
 			CheckDlgButton(cleanMgr.hDlg, IDC_CHECK3, cleanMgr.memCleanSwitches[4]);
 			CheckDlgButton(cleanMgr.hDlg, IDC_CHECK6, cleanMgr.memCleanSwitches[5]);
+			CheckDlgButton(cleanMgr.hDlg, IDC_CHECK7, cleanMgr.autoStart);
+			
 
 			std::thread t([] () {
 
@@ -118,9 +120,9 @@ INT_PTR CALLBACK DlgProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) 
 
 			} else if (LOWORD(wParam) == IDC_BUTTON2) {
 
+				char buffer[1024];
 				auto result = cleanMgr.flushSystemBuffer();
 				
-				char buffer[1024];
 				if (result >= 0) {
 					sprintf(buffer, "已清除系统缓存：%d MB。", result);
 				} else {
@@ -132,9 +134,9 @@ INT_PTR CALLBACK DlgProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) 
 
 			} else if (LOWORD(wParam) == IDC_BUTTON3) {
 
+				char buffer[1024];
 				auto result = cleanMgr.purgeMemoryStandbyList();
 
-				char buffer[1024];
 				if (result >= 0) {
 					sprintf(buffer, "已清空内存等待链。");
 				} else {
@@ -145,7 +147,6 @@ INT_PTR CALLBACK DlgProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) 
 				return (INT_PTR)TRUE;
 
 			} else if (LOWORD(wParam) == IDC_CHECK2) {
-
 				auto checked = IsDlgButtonChecked(cleanMgr.hDlg, IDC_CHECK2);
 				if (checked == BST_CHECKED || checked == BST_UNCHECKED) {
 					cleanMgr.memCleanSwitches[0] = checked;
@@ -155,7 +156,6 @@ INT_PTR CALLBACK DlgProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) 
 				return (INT_PTR)TRUE;
 
 			} else if (LOWORD(wParam) == IDC_CHECK4) {
-
 				auto checked = IsDlgButtonChecked(cleanMgr.hDlg, IDC_CHECK4);
 				if (checked == BST_CHECKED || checked == BST_UNCHECKED) {
 					cleanMgr.memCleanSwitches[1] = checked;
@@ -165,7 +165,6 @@ INT_PTR CALLBACK DlgProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) 
 				return (INT_PTR)TRUE;
 
 			} else if (LOWORD(wParam) == IDC_CHECK5) {
-
 				auto checked = IsDlgButtonChecked(cleanMgr.hDlg, IDC_CHECK5);
 				if (checked == BST_CHECKED || checked == BST_UNCHECKED) {
 					cleanMgr.memCleanSwitches[2] = checked;
@@ -175,7 +174,6 @@ INT_PTR CALLBACK DlgProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) 
 				return (INT_PTR)TRUE;
 
 			} else if (LOWORD(wParam) == IDC_CHECK1) {
-
 				auto checked = IsDlgButtonChecked(cleanMgr.hDlg, IDC_CHECK1);
 				if (checked == BST_CHECKED || checked == BST_UNCHECKED) {
 					cleanMgr.memCleanSwitches[3] = checked;
@@ -185,7 +183,6 @@ INT_PTR CALLBACK DlgProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) 
 				return (INT_PTR)TRUE;
 
 			} else if (LOWORD(wParam) == IDC_CHECK3) {
-
 				auto checked = IsDlgButtonChecked(cleanMgr.hDlg, IDC_CHECK3);
 				if (checked == BST_CHECKED || checked == BST_UNCHECKED) {
 					cleanMgr.memCleanSwitches[4] = checked;
@@ -195,10 +192,44 @@ INT_PTR CALLBACK DlgProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) 
 				return (INT_PTR)TRUE;
 
 			} else if (LOWORD(wParam) == IDC_CHECK6) {
-
 				auto checked = IsDlgButtonChecked(cleanMgr.hDlg, IDC_CHECK6);
 				if (checked == BST_CHECKED || checked == BST_UNCHECKED) {
 					cleanMgr.memCleanSwitches[5] = checked;
+				}
+				cleanMgr.savecfg();
+
+				return (INT_PTR)TRUE;
+
+			} else if (LOWORD(wParam) == IDC_CHECK7) { // autostart
+
+				auto checked = IsDlgButtonChecked(cleanMgr.hDlg, IDC_CHECK7);
+				if (checked == BST_CHECKED) {
+					
+					char exePath[1024] = "\"";
+					GetModuleFileName(NULL, exePath + 1, 1023);
+					strcat(exePath, "\" --slient");
+					
+					HKEY hKey;
+					if (RegOpenKeyEx(HKEY_CURRENT_USER, "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", 0, KEY_ALL_ACCESS, &hKey) == ERROR_SUCCESS) {
+						RegSetValueEx(hKey, "memclean", 0, REG_SZ, (const BYTE*)exePath, strlen(exePath) + 1);
+						RegCloseKey(hKey);
+					} else {
+						systemMgr.panic("RegOpenKeyEx failed");
+					}
+
+					cleanMgr.autoStart = true;
+
+				} else if (checked == BST_UNCHECKED) {
+					
+					HKEY hKey;
+					if (RegOpenKeyEx(HKEY_CURRENT_USER, "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", 0, KEY_ALL_ACCESS, &hKey) == ERROR_SUCCESS) {
+						RegDeleteValue(hKey, "memclean");
+						RegCloseKey(hKey);
+					} else {
+						systemMgr.panic("RegOpenKeyEx failed");
+					}
+
+					cleanMgr.autoStart = false;
 				}
 				cleanMgr.savecfg();
 
@@ -225,7 +256,12 @@ INT_PTR CALLBACK DlgProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) 
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
+	static UINT msg_taskbarRestart;
+
 	switch (msg) {
+	case WM_CREATE:
+		msg_taskbarRestart = RegisterWindowMessage("TaskbarCreated");
+	break;
 	case WM_TRAYACTIVATE:
 	{
 		if (lParam == WM_LBUTTONDBLCLK) {
@@ -282,6 +318,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 	{
 		PostQuitMessage(0);
 	}
+	break;
+	default:
+		if (msg == msg_taskbarRestart) {
+			systemMgr.createTray(WM_TRAYACTIVATE);
+		}
 	break;
 	}
 

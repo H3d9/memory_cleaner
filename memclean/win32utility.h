@@ -37,9 +37,12 @@ public:
 
 public:
 	volatile bool    memCleanSwitches[6];
+	volatile bool    autoStart;
 	volatile HWND    hDlg;
 	volatile HWND    hwndPB;
 
+private:
+	std::string      profile_str;
 
 private:
 	enum _SYSTEM_INFORMATION_CLASS {
@@ -95,8 +98,6 @@ public:
 public:
 	bool       systemInit(HINSTANCE hInstance);
 	void       setupProcessDpi();
-	void       enableDebugPrivilege();
-	bool       checkDebugPrivilege();
 	bool       createWindow(WNDPROC WndProc, DWORD WndIcon);
 	void       createTray(UINT trayActiveMsg);
 	void       removeTray();

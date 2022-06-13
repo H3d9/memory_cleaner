@@ -18,12 +18,6 @@ INT WINAPI WinMain(
 
 	systemMgr.setupProcessDpi();
 
-	systemMgr.enableDebugPrivilege();
-
-	if (!systemMgr.checkDebugPrivilege()) {
-		return -1;
-	}
-
 	if (!systemMgr.systemInit(hInstance)) {
 		return -1;
 	}
@@ -43,7 +37,9 @@ INT WINAPI WinMain(
 
 	cleanMgr.raiseMemCleanThread();
 
-	DialogBox(hInstance, MAKEINTRESOURCE(IDD_DIALOG1), NULL, DlgProc);
+	if (0 == strstr(lpCmdLine, "slient")) {
+		DialogBox(hInstance, MAKEINTRESOURCE(IDD_DIALOG1), NULL, DlgProc);
+	}
 
 	auto result =
 	systemMgr.messageLoop();

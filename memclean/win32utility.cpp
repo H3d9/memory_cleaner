@@ -9,7 +9,7 @@
 
 
 memcleanManager::memcleanManager() 
-	: memCleanSwitches{}, hDlg(NULL), hwndPB(NULL), NtSetSystemInformation(NULL) {}
+	: memCleanSwitches{}, autoStart(false), hDlg(NULL), hwndPB(NULL), NtSetSystemInformation(NULL) {}
 
 memcleanManager::~memcleanManager() {
 	if (hwndPB) {
@@ -57,13 +57,35 @@ void memcleanManager::init() {
 	if (hNtdll) {
 		NtSetSystemInformation = (NtSetSystemInformation_t)GetProcAddress(hNtdll, "NtSetSystemInformation");
 	}
+
+	// get program dir.
+	char buf[1024];
+	GetModuleFileName(NULL, buf, 1024);
+	if (auto pos = strrchr(buf, '\\')) {
+		pos[0] = '\0';
+	} else {
+		MessageBox(0, "program dir invalid", 0, 0);
+		strcpy(buf, ".");
+	}
+
+	profile_str = std::string(buf) + "\\memclean.ini";
 }
 
 bool memcleanManager::loadcfg() {
 
-	auto     profile = ".\\memclean.ini";
+	auto     profile = profile_str.c_str();
 	bool     result = true;
 	char     switchnow[0x1000];
+
+
+	UINT res = GetPrivateProfileInt("memclean", "autostart", -1, profile);
+	if (res == (UINT)-1 || (res != 0 && res != 1)) {
+		WritePrivateProfileString("memclean", "autostart", "0", profile);
+		autoStart = false;
+		result = false;
+	} else {
+		autoStart = res;
+	}
 
 	for (int i = 0; i < 6; i++) {
 		sprintf(switchnow, "switch%d", i);
@@ -82,8 +104,11 @@ bool memcleanManager::loadcfg() {
 
 void memcleanManager::savecfg() {
 
-	auto     profile = ".\\memclean.ini";
+	auto     profile = profile_str.c_str();
 	char     switchnow[0x1000];
+
+
+	WritePrivateProfileString("memclean", "autostart", autoStart ? "1" : "0", profile);
 
 	for (int i = 0; i < 6; i++) {
 		sprintf(switchnow, "switch%d", i);
@@ -147,6 +172,7 @@ int memcleanManager::flushSystemBuffer() {
 
 	if (ret >= 0) {
 
+		Sleep(100);
 		MEMORYSTATUSEX memInfo;
 		memset(&memInfo, 0, sizeof(memInfo));
 		memInfo.dwLength = sizeof(MEMORYSTATUSEX);
@@ -297,50 +323,6 @@ bool win32SystemManager::systemInit(HINSTANCE hInstance) {
 	}
 
 	return true;
-}
-
-void win32SystemManager::enableDebugPrivilege() {
-
-	HANDLE hToken;
-	LUID Luid;
-	TOKEN_PRIVILEGES tp;
-
-	OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &hToken);
-
-	LookupPrivilegeValue(NULL, SE_DEBUG_NAME, &Luid);
-	tp.PrivilegeCount = 1;
-	tp.Privileges[0].Luid = Luid;
-	tp.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
-	AdjustTokenPrivileges(hToken, FALSE, &tp, sizeof(tp), NULL, NULL);
-
-	CloseHandle(hToken);
-}
-
-bool win32SystemManager::checkDebugPrivilege() {
-
-	HANDLE hToken;
-	LUID luidPrivilege = { 0 };
-	PRIVILEGE_SET RequiredPrivileges = { 0 };
-	BOOL bResult = 0;
-
-	OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &hToken);
-
-	LookupPrivilegeValue(NULL, SE_DEBUG_NAME, &luidPrivilege);
-
-	RequiredPrivileges.Control = PRIVILEGE_SET_ALL_NECESSARY;
-	RequiredPrivileges.PrivilegeCount = 1;
-	RequiredPrivileges.Privilege[0].Luid = luidPrivilege;
-	RequiredPrivileges.Privilege[0].Attributes = SE_PRIVILEGE_ENABLED;
-
-	PrivilegeCheck(hToken, &RequiredPrivileges, &bResult);
-
-	CloseHandle(hToken);
-
-	if (!bResult) {
-		panic("提升权限失败，请右键管理员运行。");
-	}
-
-	return (bool)bResult;
 }
 
 bool win32SystemManager::createWindow(WNDPROC WndProc, DWORD WndIcon) {

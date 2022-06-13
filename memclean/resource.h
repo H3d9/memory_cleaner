@@ -13,6 +13,7 @@
 #define IDC_BUTTON3                     1007
 #define IDC_CHECK5                      1008
 #define IDC_CHECK6                      1009
+#define IDC_CHECK7                      1010
 #define IDC_STATIC1                     1011
 #define IDC_STATIC2                     1012
 
