@@ -212,6 +212,8 @@ int memcleanManager::purgeMemoryStandbyList() {
 	if (result < 0) {
 		return result;
 	}
+
+	return 0;
 }
 
 void memcleanManager::raiseMemCleanThread() {
