@@ -60,25 +60,26 @@ IDI_ICON1               ICON                    "logo.ico"
 // Dialog
 //
 
-IDD_DIALOG1 DIALOGEX 0, 0, 252, 183
+IDD_DIALOG1 DIALOGEX 0, 0, 257, 183
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_MINIMIZEBOX | WS_CAPTION | WS_SYSMENU
 CAPTION "Memory Cleaner"
 FONT 8, "MS Shell Dlg", 400, 0, 0x0
 BEGIN
-    PUSHBUTTON      "裁剪进程工作集",IDC_BUTTON1,169,79,72,14
+    PUSHBUTTON      "裁剪进程工作集",IDC_BUTTON1,173,129,72,14
     LTEXT           "Memory Cleaner 免更新重制版            RemasteRed by: H3d9",IDC_STATIC,9,9,226,13
     ICON            IDI_ICON1,IDC_STATIC,13,25,20,20
     LTEXT           "内存用量：",IDC_STATIC1,13,51,204,8
     LTEXT           "页面文件：",IDC_STATIC2,13,64,204,8
-    PUSHBUTTON      "清理系统缓存",IDC_BUTTON2,169,95,72,14
-    CONTROL         "若内存用量超出80%，裁剪进程工作集",IDC_CHECK1,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,10,132,167,10
-    CONTROL         "每过5分钟，裁剪进程工作集",IDC_CHECK2,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,10,82,153,10
-    CONTROL         "若内存用量超出80%，清理系统缓存",IDC_CHECK3,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,10,148,160,10
-    CONTROL         "每过5分钟，清理系统缓存",IDC_CHECK4,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,10,98,150,10
-    PUSHBUTTON      "清理内存等待链",IDC_BUTTON3,169,111,72,14
-    CONTROL         "每过5分钟，清理内存等待链 (不建议)",IDC_CHECK5,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,10,114,155,10
-    CONTROL         "若内存用量超出80%，清理内存等待链 (不建议)",IDC_CHECK6,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,10,163,201,10
-    CONTROL         "开机启动",IDC_CHECK7,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,181,148,55,10
+    PUSHBUTTON      "清理系统缓存",IDC_BUTTON2,173,145,72,14
+    CONTROL         "若内存用量超出80%，裁剪进程工作集",IDC_CHECK1,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,10,82,167,10
+    CONTROL         "每过5分钟，裁剪进程工作集",IDC_CHECK2,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,10,131,153,10
+    CONTROL         "若内存用量超出80%，清理系统缓存",IDC_CHECK3,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,10,98,160,10
+    CONTROL         "每过5分钟，清理系统缓存",IDC_CHECK4,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,10,147,150,10
+    PUSHBUTTON      "清理内存等待链",IDC_BUTTON3,173,161,72,14
+    CONTROL         "每过5分钟，清理内存等待链 (不建议)",IDC_CHECK5,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,10,163,155,10
+    CONTROL         "若内存用量超出80%，清理内存等待链 (不建议)",IDC_CHECK6,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,10,113,201,10
+    CONTROL         "开机启动",IDC_CHECK7,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,186,82,55,10
+    CONTROL         "强力模式",IDC_CHECK8,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,186,97,61,10
 END
 
 
@@ -93,7 +94,7 @@ BEGIN
     IDD_DIALOG1, DIALOG
     BEGIN
         LEFTMARGIN, 7
-        RIGHTMARGIN, 245
+        RIGHTMARGIN, 250
         TOPMARGIN, 7
         BOTTOMMARGIN, 176
     END

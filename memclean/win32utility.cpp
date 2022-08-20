@@ -1,17 +1,15 @@
 #include <Windows.h>
 #include <tlhelp32.h>
-#include <UserEnv.h>
 #include <time.h>
 #include <Psapi.h>
 #include <thread>
 #include <mutex>
+#include "wndproc.h"
 #include "win32utility.h"
-
-#pragma comment(lib, "Userenv.lib")
 
 
 memcleanManager::memcleanManager() 
-	: memCleanSwitches{}, autoStart(false), hDlg(NULL), hwndPB(NULL), NtSetSystemInformation(NULL) {}
+	: memCleanSwitches{}, autoStart(false), bruteMode(false), hDlg(NULL), hwndPB(NULL), NtSetSystemInformation(NULL) {}
 
 memcleanManager::~memcleanManager() {
 	if (hwndPB) {
@@ -39,16 +37,16 @@ void memcleanManager::init() {
 	tp.PrivilegeCount = 1;
 	tp.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
 
-	// 1 get permission to optimize system cache
+	// optimize system cache
 	LookupPrivilegeValue(NULL, "SeIncreaseQuotaPrivilege", &tp.Privileges[0].Luid);
 	AdjustTokenPrivileges(hToken, FALSE, &tp, sizeof(tp), NULL, NULL);
 
-	// 2 get permission to modify memory standby list
+	// modify memory standby list
 	LookupPrivilegeValue(NULL, "SeProfileSingleProcessPrivilege", &tp.Privileges[0].Luid);
 	AdjustTokenPrivileges(hToken, FALSE, &tp, sizeof(tp), NULL, NULL);
 
 
-	// 3 check if privileges are aquired.
+	// check if privileges are aquired.
 	BOOL bResult;
 
 	PRIVILEGE_SET ps;
@@ -82,11 +80,9 @@ void memcleanManager::init() {
 	CHAR         buf[1024];
 	DWORD        size = 1024;
 
-	OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &hToken);
-	GetUserProfileDirectory(hToken, buf, &size);
-	CloseHandle(hToken);
+	ExpandEnvironmentStrings("%appdata%\\memclean", buf, size);
 
-	profile_str = std::string(buf) + "\\AppData\\Roaming\\memclean";
+	profile_str = buf;
 
 	DWORD pathAttr = GetFileAttributes(profile_str.c_str());
 	if ((pathAttr == INVALID_FILE_ATTRIBUTES) || !(pathAttr & FILE_ATTRIBUTE_DIRECTORY)) {
@@ -102,28 +98,25 @@ bool memcleanManager::loadcfg() {
 
 	auto     profile = profile_str.c_str();
 	bool     result = true;
-	char     switchnow[0x1000];
+	char     buf[0x1000];
 
-
-	UINT res = GetPrivateProfileInt("memclean", "autostart", -1, profile);
-	if (res == (UINT)-1 || (res != 0 && res != 1)) {
-		WritePrivateProfileString("memclean", "autostart", "0", profile);
-		autoStart = false;
+	GetPrivateProfileString("Global", "Version", NULL, buf, 128, profile);
+	if (strcmp(buf, VERSION) != 0) {
+		WritePrivateProfileString("Global", "Version", VERSION, profile);
 		result = false;
-	} else {
-		autoStart = res;
 	}
 
+	autoStart = GetPrivateProfileInt("memclean", "autostart", 0, profile);
+	bruteMode = GetPrivateProfileInt("memclean", "bruteMode", 0, profile);
+
 	for (int i = 0; i < 6; i++) {
-		sprintf(switchnow, "switch%d", i);
-		UINT res = GetPrivateProfileInt("memclean", switchnow, -1, profile);
-		if (res == (UINT)-1 || (res != 0 && res != 1)) {
-			WritePrivateProfileString("memclean", switchnow, "0", profile);
-			memCleanSwitches[i] = 0;
-			result = false;
-		} else {
-			memCleanSwitches[i] = res;
-		}
+		sprintf(buf, "switch%d", i);
+		memCleanSwitches[i] = GetPrivateProfileInt("memclean", buf, 0, profile);
+	}
+
+	if (!result) {
+		memCleanSwitches[3] = memCleanSwitches[4] = true;
+		savecfg();
 	}
 
 	return result;
@@ -132,14 +125,14 @@ bool memcleanManager::loadcfg() {
 void memcleanManager::savecfg() {
 
 	auto     profile = profile_str.c_str();
-	char     switchnow[0x1000];
-
+	char     buf[0x1000];
 
 	WritePrivateProfileString("memclean", "autostart", autoStart ? "1" : "0", profile);
+	WritePrivateProfileString("memclean", "bruteMode", bruteMode ? "1" : "0", profile);
 
 	for (int i = 0; i < 6; i++) {
-		sprintf(switchnow, "switch%d", i);
-		WritePrivateProfileString("memclean", switchnow, memCleanSwitches[i] ? "1" : "0", profile);
+		sprintf(buf, "switch%d", i);
+		WritePrivateProfileString("memclean", buf, memCleanSwitches[i] ? "1" : "0", profile);
 	}
 }
 
@@ -170,6 +163,17 @@ void memcleanManager::trimProcessWorkingSet() {
 	}
 
 	CloseHandle(hSnapshot);
+}
+
+void memcleanManager::trimProcessWorkingSet2() {
+
+	if (!NtSetSystemInformation) {
+		return;
+	}
+
+	_SYSTEM_MEMORY_LIST_COMMAND command = MemoryEmptyWorkingSets;
+
+	int a = NtSetSystemInformation(SystemMemoryListInformation, &command, sizeof(command));
 }
 
 int memcleanManager::flushSystemBuffer() {
@@ -232,7 +236,11 @@ void memcleanManager::raiseMemCleanThread() {
 				if (currentTime - lastCleanTime > 300) {
 
 					if (memCleanSwitches[0]) {
-						trimProcessWorkingSet();
+						if (bruteMode) {
+							trimProcessWorkingSet2();
+						} else {
+							trimProcessWorkingSet();
+						}
 					}
 					if (memCleanSwitches[1]) {
 						flushSystemBuffer();
@@ -262,7 +270,11 @@ void memcleanManager::raiseMemCleanThread() {
 
 				if (usedPercent >= 0.8) {
 					if (memCleanSwitches[3]) {
-						trimProcessWorkingSet();
+						if (bruteMode) {
+							trimProcessWorkingSet2();
+						} else {
+							trimProcessWorkingSet();
+						}
 					}
 					if (memCleanSwitches[4]) {
 						flushSystemBuffer();
@@ -289,7 +301,7 @@ win32SystemManager::win32SystemManager()
 
 win32SystemManager::~win32SystemManager() {
 	if (hProgram) {
-		CloseHandle(hProgram);
+		ReleaseMutex(hProgram);
 	}
 }
 
@@ -310,13 +322,7 @@ void win32SystemManager::setupProcessDpi() {
 			SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_UNAWARE_GDISCALED);
 		
 		} else {
-			
-			typedef BOOL(WINAPI* fp2)();
-			fp2 SetProcessDPIAware = (fp2)GetProcAddress(hUser32, "SetProcessDPIAware");
-
-			if (SetProcessDPIAware) {
-				SetProcessDPIAware();
-			}
+			SetProcessDPIAware();
 		}
 
 		FreeLibrary(hUser32);
@@ -329,7 +335,7 @@ bool win32SystemManager::systemInit(HINSTANCE hInstance) {
 
 	hProgram = CreateMutex(NULL, FALSE, "memcleaner");
 	if (!hProgram || GetLastError() == ERROR_ALREADY_EXISTS) {
-		panic(0, "同时只能运行一个Memory Cleaner。");
+		panic(0, "Memory Cleaner已经启动了。");
 		return false;
 	}
 

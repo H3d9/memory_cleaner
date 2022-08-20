@@ -20,12 +20,12 @@ extern memcleanManager& cleanMgr;
 
 void ShowAbout() {
 	MessageBox(0,
-		"22.6.13更新内容：增加开机自启。\n\n"
+		VERSION "更新内容：新增强力模式，开启后可清SGUARD内存\n\n"
 		"说明：功能按原 Memory Cleaner 复刻，删除联网更新。\n\n"
-		"提示：若内存够用就不要频繁清理，否则反而会导致系统性能下降。\n\n"
+		"提示：一般勾上80%的就行了，如果觉得不够再勾上5分钟的。\n若内存够用就不要频繁清理，否则反而会导致系统性能下降。\n\n"
 		"裁剪进程工作集 = Trim Processes' Working Set\n"
 		"清理系统缓存 = Clear System Cache\n"
-		"清理StandbyList = 新增 听说玩游戏容易卡一下，不建议开\n\n"
+		"清理StandbyList：新增，用后短时间玩游戏会卡\n（内存实在不够的话可手动点这个，过几分钟出优化效果）\n\n"
 		"  原作：Koshy John\n   破解 & 重写：H3d9",
 		"Memory Cleaner 免更新重制版  RemasteRed by: @H3d9",
 		MB_OK);
@@ -39,6 +39,9 @@ INT_PTR CALLBACK DlgProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) 
 		case WM_INITDIALOG:
 		{
 			cleanMgr.hDlg = hDlg;
+
+			auto icon = LoadIcon(systemMgr.hInstance, MAKEINTRESOURCE(IDI_ICON1));
+			SendMessage(hDlg, WM_SETICON, ICON_SMALL, (LPARAM)icon);
 
 			RECT rect;
 			GetClientRect(hDlg, &rect);
@@ -68,7 +71,8 @@ INT_PTR CALLBACK DlgProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) 
 			CheckDlgButton(cleanMgr.hDlg, IDC_CHECK3, cleanMgr.memCleanSwitches[4]);
 			CheckDlgButton(cleanMgr.hDlg, IDC_CHECK6, cleanMgr.memCleanSwitches[5]);
 			CheckDlgButton(cleanMgr.hDlg, IDC_CHECK7, cleanMgr.autoStart);
-			
+			CheckDlgButton(cleanMgr.hDlg, IDC_CHECK8, cleanMgr.bruteMode);
+
 
 			std::thread t([] () {
 
@@ -115,8 +119,13 @@ INT_PTR CALLBACK DlgProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) 
 		case WM_COMMAND:
 		{
 			if (LOWORD(wParam) == IDC_BUTTON1) {
-				
-				cleanMgr.trimProcessWorkingSet();
+
+				if (cleanMgr.bruteMode) {
+					cleanMgr.trimProcessWorkingSet2();
+				} else {
+					cleanMgr.trimProcessWorkingSet();
+				}
+
 				return (INT_PTR)TRUE;
 
 			} else if (LOWORD(wParam) == IDC_BUTTON2) {
@@ -242,6 +251,15 @@ INT_PTR CALLBACK DlgProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) 
 
 				return (INT_PTR)TRUE;
 
+			} else if (LOWORD(wParam) == IDC_CHECK8) {
+				auto checked = IsDlgButtonChecked(cleanMgr.hDlg, IDC_CHECK8);
+				if (checked == BST_CHECKED || checked == BST_UNCHECKED) {
+					cleanMgr.bruteMode = checked;
+				}
+				cleanMgr.savecfg();
+
+				return (INT_PTR)TRUE;
+
 			}
 		}
 		break;
@@ -280,10 +298,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 		if (lParam == WM_RBUTTONUP || lParam == WM_CONTEXTMENU) {
 
 			HMENU hMenu = CreatePopupMenu();
-
 			AppendMenu(hMenu, MFT_STRING, IDM_OPEN, "打开主界面");
-			AppendMenu(hMenu, MFT_STRING, IDM_ABOUT, "说明");
+			AppendMenu(hMenu, MFT_STRING, IDM_ABOUT, "查看说明");
 			AppendMenu(hMenu, MFT_STRING, IDM_SOURCE, "查看源代码");
+			AppendMenu(hMenu, MF_SEPARATOR, 0, NULL);
+			AppendMenu(hMenu, MFT_STRING, IDM_WORKINGSET, "清理进程工作集");
+			AppendMenu(hMenu, MFT_STRING, IDM_SYSCACHE, "清理系统缓存");
+			AppendMenu(hMenu, MFT_STRING, IDM_STANDBYLIST, "清理内存等待链");
+			AppendMenu(hMenu, MF_SEPARATOR, 0, NULL);
 			AppendMenu(hMenu, MFT_STRING, IDM_EXIT, "退出");
 
 			POINT pt;
@@ -299,6 +321,20 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 		UINT id = LOWORD(wParam);
 
 		switch (id) {
+			case IDM_WORKINGSET:
+				if (cleanMgr.bruteMode) {
+					cleanMgr.trimProcessWorkingSet2();
+				} else {
+					cleanMgr.trimProcessWorkingSet();
+				}
+				break;
+			case IDM_SYSCACHE:
+				cleanMgr.flushSystemBuffer();
+				break;
+			case IDM_STANDBYLIST:
+				cleanMgr.purgeMemoryStandbyList();
+				break;
+
 			case IDM_OPEN:
 				if (!cleanMgr.hDlg) {
 					DialogBox(systemMgr.hInstance, MAKEINTRESOURCE(IDD_DIALOG1), NULL, DlgProc);

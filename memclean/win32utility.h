@@ -29,6 +29,7 @@ public:
 	void       savecfg();
 
 	void       trimProcessWorkingSet();
+	void       trimProcessWorkingSet2();
 	int        flushSystemBuffer();
 	int        purgeMemoryStandbyList();
 
@@ -38,6 +39,7 @@ public:
 public:
 	volatile bool    memCleanSwitches[6];
 	volatile bool    autoStart;
+	volatile bool    bruteMode;
 	volatile HWND    hDlg;
 	volatile HWND    hwndPB;
 
@@ -47,16 +49,16 @@ private:
 private:
 	enum _SYSTEM_INFORMATION_CLASS {
 		SystemFileCacheInformation = 21,
-		SystemMemoryListInformation = 80 // 不弄了 memreduct就用的这个 怕卡
+		SystemMemoryListInformation = 80 // rammap用的这个清空working set，可清理sguard
 	};
 
 	enum _SYSTEM_MEMORY_LIST_COMMAND {
 		MemoryCaptureAccessedBits,
 		MemoryCaptureAndResetAccessedBits,
-		MemoryEmptyWorkingSets, // 没弄，原版没有
-		MemoryFlushModifiedList, // 没弄，原版没有
+		MemoryEmptyWorkingSets, // rammap用的这个清空working set
+		MemoryFlushModifiedList, // 新加的
 		MemoryPurgeStandbyList,
-		MemoryPurgeLowPriorityStandbyList, // 没弄，原版没有
+		MemoryPurgeLowPriorityStandbyList, // 新加的
 		MemoryCommandMax
 	};
 
