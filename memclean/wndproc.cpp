@@ -20,12 +20,12 @@ extern memcleanManager& cleanMgr;
 
 void ShowAbout() {
 	MessageBox(0,
-		VERSION "更新内容：新增强力模式，开启后可清SGUARD内存\n\n"
-		"说明：功能按原 Memory Cleaner 复刻，删除联网更新。\n\n"
-		"提示：一般勾上80%的就行了，如果觉得不够再勾上5分钟的。\n若内存够用就不要频繁清理，否则反而会导致系统性能下降。\n\n"
+		VERSION "更新内容：新增强力模式，可清SGUARD内存\n\n"
+		"说明：功能按原 Memory Cleaner 复刻，删除强制联网更新。\n\n"
+		"一般勾上80%的就行了，如果觉得不够再勾上5分钟的。\n若内存够用就不要频繁清理，否则反而会导致系统性能下降。\n\n"
 		"裁剪进程工作集 = Trim Processes' Working Set\n"
 		"清理系统缓存 = Clear System Cache\n"
-		"清理StandbyList：新增，用后短时间玩游戏会卡\n（内存实在不够的话可手动点这个，过几分钟出优化效果）\n\n"
+		"清理内存等待链：可以开游戏前手动点一下；如果开了游戏再点可能短暂卡顿。\n\n"
 		"  原作：Koshy John\n   破解 & 重写：H3d9",
 		"Memory Cleaner 免更新重制版  RemasteRed by: @H3d9",
 		MB_OK);
@@ -82,7 +82,8 @@ INT_PTR CALLBACK DlgProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) 
 					ULONGLONG usedVirtualMem = 0;
 					ULONGLONG totalPhysMem = 0;
 					ULONGLONG usedPhysMem = 0;
-					double usedPercent = 0.0;
+					double physPercent = 0.0;
+					double virtPercent = 0.0;
 
 					MEMORYSTATUSEX memInfo;
 					memset(&memInfo, 0, sizeof(memInfo));
@@ -96,16 +97,17 @@ INT_PTR CALLBACK DlgProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) 
 					usedVirtualMem /= (1024 * 1024);
 					totalPhysMem /= (1024 * 1024);
 					usedPhysMem /= (1024 * 1024);
-					usedPercent = (double)usedPhysMem / totalPhysMem;
+					physPercent = (double)usedPhysMem / totalPhysMem;
+					virtPercent = (double)usedVirtualMem / totalVirtualMem;
 
 					char buffer[1024];
-					sprintf(buffer, "物理内存用量：%llu MB  /  %llu MB   (%.0f%% 负载)", usedPhysMem, totalPhysMem, usedPercent * 100);
+					sprintf(buffer, "物理内存用量：%llu MB  /  %llu MB   (%.0f%% 负载)", usedPhysMem, totalPhysMem, physPercent * 100);
 					SetDlgItemText(cleanMgr.hDlg, IDC_STATIC1, buffer);
 
-					sprintf(buffer, "页面文件用量：%llu MB               虚拟内存: %llu MB ", usedVirtualMem, totalVirtualMem);
+					sprintf(buffer, "页面文件用量：%llu MB  (%.0f%%)          虚拟内存：%llu MB", usedVirtualMem, virtPercent * 100, totalVirtualMem);
 					SetDlgItemText(cleanMgr.hDlg, IDC_STATIC2, buffer);
 
-					SendMessage(cleanMgr.hwndPB, PBM_SETPOS, (WPARAM)(ULONGLONG)((ULONGLONG)16384 * usedPercent), 0);
+					SendMessage(cleanMgr.hwndPB, PBM_SETPOS, (WPARAM)(ULONGLONG)((ULONGLONG)16384 * physPercent), 0);
 
 					Sleep(1000);
 				}
@@ -227,7 +229,7 @@ INT_PTR CALLBACK DlgProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) 
 					
 					HKEY hKey;
 					if (RegOpenKeyEx(HKEY_CURRENT_USER, "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", 0, KEY_ALL_ACCESS, &hKey) == ERROR_SUCCESS) {
-						RegSetValueEx(hKey, "memclean", 0, REG_SZ, (const BYTE*)exePath, strlen(exePath) + 1);
+						RegSetValueEx(hKey, "memclean", 0, REG_SZ, (const BYTE*)exePath, (DWORD)(strlen(exePath) + 1));
 						RegCloseKey(hKey);
 					} else {
 						systemMgr.panic("RegOpenKeyEx failed");

@@ -1,7 +1,7 @@
 #pragma once
 #include <Windows.h>
 
-#define VERSION   "22.8.20"
+#define VERSION   "22.8.25"
 
 #define WM_TRAYACTIVATE     WM_APP + 10U
 

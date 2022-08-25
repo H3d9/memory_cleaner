@@ -107,7 +107,7 @@ bool memcleanManager::loadcfg() {
 	}
 
 	autoStart = GetPrivateProfileInt("memclean", "autostart", 0, profile);
-	bruteMode = GetPrivateProfileInt("memclean", "bruteMode", 0, profile);
+	bruteMode = GetPrivateProfileInt("memclean", "bruteMode", 1, profile);
 
 	for (int i = 0; i < 6; i++) {
 		sprintf(buf, "switch%d", i);
@@ -115,6 +115,7 @@ bool memcleanManager::loadcfg() {
 	}
 
 	if (!result) {
+		bruteMode = 1;
 		memCleanSwitches[3] = memCleanSwitches[4] = true;
 		savecfg();
 	}
@@ -173,7 +174,7 @@ void memcleanManager::trimProcessWorkingSet2() {
 
 	_SYSTEM_MEMORY_LIST_COMMAND command = MemoryEmptyWorkingSets;
 
-	int a = NtSetSystemInformation(SystemMemoryListInformation, &command, sizeof(command));
+	NtSetSystemInformation(SystemMemoryListInformation, &command, sizeof(command));
 }
 
 int memcleanManager::flushSystemBuffer() {
