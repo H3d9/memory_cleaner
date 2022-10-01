@@ -229,6 +229,7 @@
     <ClInclude Include="wndproc.h" />
   </ItemGroup>
   <ItemGroup>
+    <Image Include="donate.bmp" />
     <Image Include="logo.ico" />
   </ItemGroup>
   <ItemGroup>

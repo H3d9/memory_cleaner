@@ -21,7 +21,6 @@ private:
 public:
 	static memcleanManager& getInstance();
 
-
 public:
 	void       init();
 
@@ -30,11 +29,12 @@ public:
 
 	void       trimProcessWorkingSet();
 	void       trimProcessWorkingSet2();
-	int        flushSystemBuffer();
-	int        purgeMemoryStandbyList();
+	void       flushSystemBuffer();
+	void       cleanMemory_all();
+
+	void       getSystemCacheInfo(SIZE_T* used, SIZE_T* total);
 
 	void       raiseMemCleanThread();
-
 
 public:
 	volatile bool    memCleanSwitches[6];
@@ -47,37 +47,46 @@ private:
 	std::string      profile_str;
 
 private:
-	enum _SYSTEM_INFORMATION_CLASS {
-		SystemFileCacheInformation = 21,
-		SystemMemoryListInformation = 80 // rammap用的这个清空working set，可清理sguard
+	enum _SYSTEM_INFORMATION_CLASS { // info param 1
+		SystemFileCacheInformation = 0x15, // 查询系统缓存用
+		SystemMemoryListInformation = 0x50, // rammap用的，可清理sguard   6.0 and higher
+		SystemCombinePhysicalMemoryInformation = 0x82, // memreduct 1   6.2 and higher
 	};
 
-	enum _SYSTEM_MEMORY_LIST_COMMAND {
+	typedef struct _SYSTEM_FILECACHE_INFORMATION { // info param 2
+		SIZE_T CurrentSize;
+		SIZE_T PeakSize;
+		ULONG  PageFaultCount;
+		SIZE_T MinimumWorkingSet;
+		SIZE_T MaximumWorkingSet;
+		SIZE_T CurrentSizeIncludingTransitionInPages;
+		SIZE_T PeakSizeIncludingTransitionInPages;
+		ULONG  TransitionRePurposeCount;
+		ULONG  Flags;
+	} SYSTEM_FILECACHE_INFORMATION;
+
+	typedef struct _MEMORY_COMBINE_INFORMATION_EX { // info param 2
+		HANDLE    Handle;
+		ULONG_PTR PagesCombined;
+		ULONG     Flags;
+	} MEMORY_COMBINE_INFORMATION_EX;
+
+	enum _SYSTEM_MEMORY_LIST_COMMAND { // info param 2
 		MemoryCaptureAccessedBits,
 		MemoryCaptureAndResetAccessedBits,
-		MemoryEmptyWorkingSets, // rammap用的这个清空working set
+		MemoryEmptyWorkingSets, // rammap用的
 		MemoryFlushModifiedList, // 新加的
 		MemoryPurgeStandbyList,
 		MemoryPurgeLowPriorityStandbyList, // 新加的
 		MemoryCommandMax
 	};
 
-	typedef struct _SYSTEM_FILECACHE_INFORMATION {
-		SIZE_T CurrentSize;
-		SIZE_T PeakSize;
-		ULONG PageFaultCount;
-		SIZE_T MinimumWorkingSet;
-		SIZE_T MaximumWorkingSet;
-		SIZE_T CurrentSizeIncludingTransitionInPages;
-		SIZE_T PeakSizeIncludingTransitionInPages;
-		ULONG TransitionRePurposeCount;
-		ULONG Flags;
-	} SYSTEM_FILECACHE_INFORMATION;
-
 
 	using NtSetSystemInformation_t   = NTSTATUS(WINAPI*)(INT, PVOID, ULONG);
+	using NtQuerySystemInformation_t = DWORD(WINAPI*)(UINT, PVOID, DWORD, PDWORD);
 
 	NtSetSystemInformation_t         NtSetSystemInformation;
+	NtQuerySystemInformation_t       NtQuerySystemInformation;
 };
 
 
@@ -121,5 +130,4 @@ public:
 private:
 	HANDLE              hProgram;
 	NOTIFYICONDATA      icon;
-
 };

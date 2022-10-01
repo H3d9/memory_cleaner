@@ -6,31 +6,27 @@
 #include "resource.h"
 #include "win32utility.h"
 
-#pragma comment(lib, "Comctl32.lib")
 #pragma comment(linker, "/manifestdependency:\"type='win32' \
 						 name='Microsoft.Windows.Common-Controls' version='6.0.0.0' \
 						 processorArchitecture='*' publicKeyToken='6595b64144ccf1df' \
 						 language='*'\"")
 
 
-
-extern win32SystemManager& systemMgr;
-extern memcleanManager& cleanMgr;
-
+extern win32SystemManager&  systemMgr;
+extern memcleanManager&     cleanMgr;
 
 void ShowAbout() {
 	MessageBox(0,
-		VERSION "更新内容：新增强力模式，可清SGUARD内存\n\n"
-		"说明：功能按原 Memory Cleaner 复刻，删除强制联网更新。\n\n"
+		VERSION "更新内容：集成目前已有的所有清理内存方法，包括Memreduct使用的全部方法。\n\n"
+		"说明：功能按原 Memory Cleaner 复刻，删除原版的强制联网更新导致打不开。\n\n"
 		"一般勾上80%的就行了，如果觉得不够再勾上5分钟的。\n若内存够用就不要频繁清理，否则反而会导致系统性能下降。\n\n"
 		"裁剪进程工作集 = Trim Processes' Working Set\n"
 		"清理系统缓存 = Clear System Cache\n"
-		"清理内存等待链：可以开游戏前手动点一下；如果开了游戏再点可能短暂卡顿。\n\n"
-		"  原作：Koshy John\n   破解 & 重写：H3d9",
-		"Memory Cleaner 免更新重制版  RemasteRed by: @H3d9",
+		"执行全部已知清理：可以开游戏前手动点一下；如果开了游戏再点可能短暂卡顿。\n\n"
+		"  原作：Koshy John && henry++\n  重制：H3d9",
+		"Memory Cleaner 重制版  RemasteRed by: @H3d9",
 		MB_OK);
 }
-
 
 INT_PTR CALLBACK DlgProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) {
 
@@ -43,41 +39,34 @@ INT_PTR CALLBACK DlgProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) 
 			auto icon = LoadIcon(systemMgr.hInstance, MAKEINTRESOURCE(IDI_ICON1));
 			SendMessage(hDlg, WM_SETICON, ICON_SMALL, (LPARAM)icon);
 
-			RECT rect;
-			GetClientRect(hDlg, &rect);
-			
-			cleanMgr.hwndPB = CreateWindowEx(0, PROGRESS_CLASS, (LPTSTR)NULL, WS_CHILD | WS_VISIBLE | PBS_SMOOTH,
-				rect.left + 60, rect.top + 40, rect.right - 80, 35,
-				hDlg, (HMENU)0, systemMgr.hInstance, NULL);
-			
-			if (!cleanMgr.hwndPB) {
-				systemMgr.panic("CreateWindowEx failed");
-				return FALSE;
-			}
-			
+			cleanMgr.hwndPB = GetDlgItem(hDlg, IDC_PROGRESS1);
 			SendMessage(cleanMgr.hwndPB, PBM_SETRANGE, 0, MAKELPARAM(0, 16384));
 			SendMessage(cleanMgr.hwndPB, PBM_SETSTEP, (WPARAM)1, 0);
 
-			GetWindowRect(cleanMgr.hDlg, &rect);
-			SetWindowPos(cleanMgr.hDlg, HWND_TOP,
+			RECT rect;
+			GetWindowRect(hDlg, &rect);
+			SetWindowPos(hDlg, HWND_TOP,
 				GetSystemMetrics(SM_CXSCREEN) - (rect.right - rect.left) - 60,
 				GetSystemMetrics(SM_CYSCREEN) - (rect.bottom - rect.top) - 60,
 				0, 0, SWP_SHOWWINDOW | SWP_NOSIZE);
 
-			CheckDlgButton(cleanMgr.hDlg, IDC_CHECK2, cleanMgr.memCleanSwitches[0]);
-			CheckDlgButton(cleanMgr.hDlg, IDC_CHECK4, cleanMgr.memCleanSwitches[1]);
-			CheckDlgButton(cleanMgr.hDlg, IDC_CHECK5, cleanMgr.memCleanSwitches[2]);
-			CheckDlgButton(cleanMgr.hDlg, IDC_CHECK1, cleanMgr.memCleanSwitches[3]);
-			CheckDlgButton(cleanMgr.hDlg, IDC_CHECK3, cleanMgr.memCleanSwitches[4]);
-			CheckDlgButton(cleanMgr.hDlg, IDC_CHECK6, cleanMgr.memCleanSwitches[5]);
-			CheckDlgButton(cleanMgr.hDlg, IDC_CHECK7, cleanMgr.autoStart);
-			CheckDlgButton(cleanMgr.hDlg, IDC_CHECK8, cleanMgr.bruteMode);
+			CheckDlgButton(hDlg, IDC_CHECK2, cleanMgr.memCleanSwitches[0]);
+			CheckDlgButton(hDlg, IDC_CHECK4, cleanMgr.memCleanSwitches[1]);
+			CheckDlgButton(hDlg, IDC_CHECK5, cleanMgr.memCleanSwitches[2]);
+			CheckDlgButton(hDlg, IDC_CHECK1, cleanMgr.memCleanSwitches[3]);
+			CheckDlgButton(hDlg, IDC_CHECK3, cleanMgr.memCleanSwitches[4]);
+			CheckDlgButton(hDlg, IDC_CHECK6, cleanMgr.memCleanSwitches[5]);
+			CheckDlgButton(hDlg, IDC_CHECK7, cleanMgr.autoStart);
+			CheckDlgButton(hDlg, IDC_CHECK8, cleanMgr.bruteMode);
 
 
 			std::thread t([] () {
 
 				while (cleanMgr.hDlg) {
-					
+
+					wchar_t buffer[1024];
+
+
 					ULONGLONG totalVirtualMem = 0;
 					ULONGLONG usedVirtualMem = 0;
 					ULONGLONG totalPhysMem = 0;
@@ -99,13 +88,24 @@ INT_PTR CALLBACK DlgProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) 
 					usedPhysMem /= (1024 * 1024);
 					physPercent = (double)usedPhysMem / totalPhysMem;
 					virtPercent = (double)usedVirtualMem / totalVirtualMem;
+					
 
-					char buffer[1024];
-					sprintf(buffer, "物理内存用量：%llu MB  /  %llu MB   (%.0f%% 负载)", usedPhysMem, totalPhysMem, physPercent * 100);
-					SetDlgItemText(cleanMgr.hDlg, IDC_STATIC1, buffer);
+					SIZE_T usedCache = 0;
+					SIZE_T totalCache = 0;
+					double cachePercent = 0.0;
 
-					sprintf(buffer, "页面文件用量：%llu MB  (%.0f%%)          虚拟内存：%llu MB", usedVirtualMem, virtPercent * 100, totalVirtualMem);
-					SetDlgItemText(cleanMgr.hDlg, IDC_STATIC2, buffer);
+					cleanMgr.getSystemCacheInfo(&usedCache, &totalCache);
+					usedCache /= (1024 * 1024);
+					totalCache /= (1024 * 1024);
+					cachePercent = (double)usedCache / totalCache;
+
+
+					swprintf(buffer, L"物理内存用量：%llu MB  /  %llu MB   (%.0f%% 负载)", usedPhysMem, totalPhysMem, physPercent * 100);
+					SetDlgItemTextW(cleanMgr.hDlg, IDC_STATIC1, buffer);
+
+					swprintf(buffer, L"页面文件：%llu MB  (%.0f%%)    系统缓存：%llu MB / %llu MB  (%.0f%%)", usedVirtualMem, virtPercent * 100, usedCache, totalCache, cachePercent * 100);
+					SetDlgItemTextW(cleanMgr.hDlg, IDC_STATIC2, buffer);
+
 
 					SendMessage(cleanMgr.hwndPB, PBM_SETPOS, (WPARAM)(ULONGLONG)((ULONGLONG)16384 * physPercent), 0);
 
@@ -132,34 +132,23 @@ INT_PTR CALLBACK DlgProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) 
 
 			} else if (LOWORD(wParam) == IDC_BUTTON2) {
 
-				char buffer[1024];
-				auto result = cleanMgr.flushSystemBuffer();
-				
-				if (result >= 0) {
-					strcpy(buffer, "已清除系统缓存。");
-				} else {
-					sprintf(buffer, "清除系统缓存时发生错误：%x。", result);
-				}
-				SetDlgItemText(cleanMgr.hDlg, IDC_STATIC1, buffer);
+				cleanMgr.flushSystemBuffer();
+				SetDlgItemText(hDlg, IDC_STATIC1, "已清除系统缓存。");
 
 				return (INT_PTR)TRUE;
 
 			} else if (LOWORD(wParam) == IDC_BUTTON3) {
 
-				char buffer[1024];
-				auto result = cleanMgr.purgeMemoryStandbyList();
-
-				if (result >= 0) {
-					sprintf(buffer, "已清空内存等待链。");
-				} else {
-					sprintf(buffer, "清空内存等待链时发生错误：%x。", result);
+				if (MessageBox(hDlg, "如果你开游戏了，不建议点这个，否则清理时和清理后一小段时间有可能游戏变卡", "提示", MB_OKCANCEL | MB_SYSTEMMODAL) == IDOK) {
+					
+					cleanMgr.cleanMemory_all();
+					SetDlgItemText(hDlg, IDC_STATIC1, "已执行其他任何可能的内存清理。");
 				}
-				SetDlgItemText(cleanMgr.hDlg, IDC_STATIC1, buffer);
 
 				return (INT_PTR)TRUE;
 
 			} else if (LOWORD(wParam) == IDC_CHECK2) {
-				auto checked = IsDlgButtonChecked(cleanMgr.hDlg, IDC_CHECK2);
+				auto checked = IsDlgButtonChecked(hDlg, IDC_CHECK2);
 				if (checked == BST_CHECKED || checked == BST_UNCHECKED) {
 					cleanMgr.memCleanSwitches[0] = checked;
 				}
@@ -168,7 +157,7 @@ INT_PTR CALLBACK DlgProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) 
 				return (INT_PTR)TRUE;
 
 			} else if (LOWORD(wParam) == IDC_CHECK4) {
-				auto checked = IsDlgButtonChecked(cleanMgr.hDlg, IDC_CHECK4);
+				auto checked = IsDlgButtonChecked(hDlg, IDC_CHECK4);
 				if (checked == BST_CHECKED || checked == BST_UNCHECKED) {
 					cleanMgr.memCleanSwitches[1] = checked;
 				}
@@ -177,9 +166,9 @@ INT_PTR CALLBACK DlgProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) 
 				return (INT_PTR)TRUE;
 
 			} else if (LOWORD(wParam) == IDC_CHECK5) {
-				auto checked = IsDlgButtonChecked(cleanMgr.hDlg, IDC_CHECK5);
+				auto checked = IsDlgButtonChecked(hDlg, IDC_CHECK5);
 				if (checked == BST_CHECKED) {
-					MessageBox(hDlg, "自动清理“内存等待链”的时候可能导致游戏卡一下", "提示", MB_OK | MB_SYSTEMMODAL);
+					MessageBox(hDlg, "如果你开游戏了，不建议点这个，否则清理时和清理后一小段时间有可能游戏变卡", "提示", MB_OK | MB_SYSTEMMODAL);
 					cleanMgr.memCleanSwitches[2] = checked;
 				} else if (checked == BST_UNCHECKED) {
 					cleanMgr.memCleanSwitches[2] = checked;
@@ -189,7 +178,7 @@ INT_PTR CALLBACK DlgProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) 
 				return (INT_PTR)TRUE;
 
 			} else if (LOWORD(wParam) == IDC_CHECK1) {
-				auto checked = IsDlgButtonChecked(cleanMgr.hDlg, IDC_CHECK1);
+				auto checked = IsDlgButtonChecked(hDlg, IDC_CHECK1);
 				if (checked == BST_CHECKED || checked == BST_UNCHECKED) {
 					cleanMgr.memCleanSwitches[3] = checked;
 				}
@@ -198,7 +187,7 @@ INT_PTR CALLBACK DlgProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) 
 				return (INT_PTR)TRUE;
 
 			} else if (LOWORD(wParam) == IDC_CHECK3) {
-				auto checked = IsDlgButtonChecked(cleanMgr.hDlg, IDC_CHECK3);
+				auto checked = IsDlgButtonChecked(hDlg, IDC_CHECK3);
 				if (checked == BST_CHECKED || checked == BST_UNCHECKED) {
 					cleanMgr.memCleanSwitches[4] = checked;
 				}
@@ -207,9 +196,9 @@ INT_PTR CALLBACK DlgProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) 
 				return (INT_PTR)TRUE;
 
 			} else if (LOWORD(wParam) == IDC_CHECK6) {
-				auto checked = IsDlgButtonChecked(cleanMgr.hDlg, IDC_CHECK6);
+				auto checked = IsDlgButtonChecked(hDlg, IDC_CHECK6);
 				if (checked == BST_CHECKED) {
-					MessageBox(hDlg, "自动清理“内存等待链”的时候可能导致游戏卡一下", "提示", MB_OK | MB_SYSTEMMODAL);
+					MessageBox(hDlg, "如果你开游戏了，不建议点这个，否则清理时和清理后一小段时间有可能游戏变卡", "提示", MB_OK | MB_SYSTEMMODAL);
 					cleanMgr.memCleanSwitches[5] = checked;
 				} else if (checked == BST_UNCHECKED) {
 					cleanMgr.memCleanSwitches[5] = checked;
@@ -220,7 +209,7 @@ INT_PTR CALLBACK DlgProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) 
 
 			} else if (LOWORD(wParam) == IDC_CHECK7) { // autostart
 
-				auto checked = IsDlgButtonChecked(cleanMgr.hDlg, IDC_CHECK7);
+				auto checked = IsDlgButtonChecked(hDlg, IDC_CHECK7);
 				if (checked == BST_CHECKED) {
 					
 					char exePath[1024] = {}; // "\""
@@ -254,7 +243,7 @@ INT_PTR CALLBACK DlgProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) 
 				return (INT_PTR)TRUE;
 
 			} else if (LOWORD(wParam) == IDC_CHECK8) {
-				auto checked = IsDlgButtonChecked(cleanMgr.hDlg, IDC_CHECK8);
+				auto checked = IsDlgButtonChecked(hDlg, IDC_CHECK8);
 				if (checked == BST_CHECKED || checked == BST_UNCHECKED) {
 					cleanMgr.bruteMode = checked;
 				}
@@ -268,9 +257,7 @@ INT_PTR CALLBACK DlgProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) 
 
 		case WM_CLOSE:
 		{
-			DestroyWindow(cleanMgr.hwndPB);
-			cleanMgr.hwndPB = NULL;
-			EndDialog(cleanMgr.hDlg, LOWORD(wParam));
+			EndDialog(hDlg, LOWORD(wParam));
 			cleanMgr.hDlg = NULL;
 			return (INT_PTR)TRUE;
 		}
@@ -280,6 +267,34 @@ INT_PTR CALLBACK DlgProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) 
 	return (INT_PTR) FALSE;
 }
 
+static INT_PTR CALLBACK DlgProc2(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) {
+
+	switch (message) {
+
+	case WM_INITDIALOG:
+	{
+		SetWindowPos(hDlg, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+		return (INT_PTR)TRUE;
+	}
+
+	case WM_COMMAND:
+	{
+		if (LOWORD(wParam) == IDC_AFDIAN) {
+			ShellExecute(0, "open", "https://afdian.net/a/sguard_limit", 0, 0, SW_SHOW);
+		}
+	}
+	break;
+
+	case WM_CLOSE:
+	{
+		EndDialog(hDlg, LOWORD(wParam));
+		return (INT_PTR)TRUE;
+	}
+	break;
+	}
+
+	return (INT_PTR)FALSE;
+}
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
@@ -300,13 +315,15 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 		if (lParam == WM_RBUTTONUP || lParam == WM_CONTEXTMENU) {
 
 			HMENU hMenu = CreatePopupMenu();
-			AppendMenu(hMenu, MFT_STRING, IDM_OPEN, "打开主界面");
+			AppendMenu(hMenu, MFT_STRING, IDM_OPEN, "Memory Cleaner 重制版");
+			AppendMenu(hMenu, MF_SEPARATOR, 0, NULL);
 			AppendMenu(hMenu, MFT_STRING, IDM_ABOUT, "查看说明");
 			AppendMenu(hMenu, MFT_STRING, IDM_SOURCE, "查看源代码");
+			AppendMenu(hMenu, MFT_STRING, IDM_DONATE, "赞助支持");
 			AppendMenu(hMenu, MF_SEPARATOR, 0, NULL);
 			AppendMenu(hMenu, MFT_STRING, IDM_WORKINGSET, "清理进程工作集");
 			AppendMenu(hMenu, MFT_STRING, IDM_SYSCACHE, "清理系统缓存");
-			AppendMenu(hMenu, MFT_STRING, IDM_STANDBYLIST, "清理内存等待链");
+			AppendMenu(hMenu, MFT_STRING, IDM_CLEANALL, "执行全部已知清理");
 			AppendMenu(hMenu, MF_SEPARATOR, 0, NULL);
 			AppendMenu(hMenu, MFT_STRING, IDM_EXIT, "退出");
 
@@ -333,8 +350,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 			case IDM_SYSCACHE:
 				cleanMgr.flushSystemBuffer();
 				break;
-			case IDM_STANDBYLIST:
-				cleanMgr.purgeMemoryStandbyList();
+			case IDM_CLEANALL:
+				cleanMgr.cleanMemory_all();
 				break;
 
 			case IDM_OPEN:
@@ -350,6 +367,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 				break;
 			case IDM_SOURCE:
 				ShellExecute(0, "open", "https://github.com/H3d9/memory_cleaner", 0, 0, SW_SHOW);
+				break;
+			case IDM_DONATE:
+				DialogBox(systemMgr.hInstance, MAKEINTRESOURCE(IDD_DONATE), NULL, DlgProc2);
 				break;
 		}
 	}

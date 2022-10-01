@@ -9,13 +9,10 @@
 
 
 memcleanManager::memcleanManager() 
-	: memCleanSwitches{}, autoStart(false), bruteMode(false), hDlg(NULL), hwndPB(NULL), NtSetSystemInformation(NULL) {}
+	: memCleanSwitches{}, autoStart(false), bruteMode(false), hDlg(NULL), hwndPB(NULL), 
+	  profile_str{}, NtSetSystemInformation(NULL), NtQuerySystemInformation(NULL) {}
 
 memcleanManager::~memcleanManager() {
-	if (hwndPB) {
-		DestroyWindow(hwndPB);
-		hwndPB = NULL;
-	}
 	if (hDlg) {
 		EndDialog(hDlg, TRUE);
 		hDlg = NULL;
@@ -70,9 +67,9 @@ void memcleanManager::init() {
 
 
 	// acquire undocumented function address.
-	HMODULE hNtdll = GetModuleHandle("ntdll.dll");
-	if (hNtdll) {
-		NtSetSystemInformation = (NtSetSystemInformation_t)GetProcAddress(hNtdll, "NtSetSystemInformation");
+	if (auto hNtdll = GetModuleHandle("ntdll.dll")) {
+		NtSetSystemInformation   = (NtSetSystemInformation_t)   GetProcAddress(hNtdll, "NtSetSystemInformation");
+		NtQuerySystemInformation = (NtQuerySystemInformation_t) GetProcAddress(hNtdll, "NtQuerySystemInformation");
 	}
 
 
@@ -177,10 +174,10 @@ void memcleanManager::trimProcessWorkingSet2() {
 	NtSetSystemInformation(SystemMemoryListInformation, &command, sizeof(command));
 }
 
-int memcleanManager::flushSystemBuffer() {
+void memcleanManager::flushSystemBuffer() {
 
 	if (!NtSetSystemInformation) {
-		return -1;
+		return;
 	}
 
 	SYSTEM_FILECACHE_INFORMATION info;
@@ -188,37 +185,58 @@ int memcleanManager::flushSystemBuffer() {
 	info.MinimumWorkingSet = -1;
 	info.MaximumWorkingSet = -1;
 
-	return (int)NtSetSystemInformation(SystemFileCacheInformation, &info, sizeof(info));
+	NtSetSystemInformation(SystemFileCacheInformation, &info, sizeof(info));
 }
 
-int memcleanManager::purgeMemoryStandbyList() {
+void memcleanManager::cleanMemory_all() {
 
 	if (!NtSetSystemInformation) {
-		return -1;
+		return;
 	}
 
-	_SYSTEM_MEMORY_LIST_COMMAND command;
-	int result;
+	// combine memory needs nt >= 6.2 (win 8+).
+	MEMORY_COMBINE_INFORMATION_EX combine;
+	ZeroMemory(&combine, sizeof(combine));
+	NtSetSystemInformation(SystemCombinePhysicalMemoryInformation, &combine, sizeof(combine));
 
-	command = MemoryFlushModifiedList;
-	result = (int)NtSetSystemInformation(SystemMemoryListInformation, &command, sizeof(command));
-	if (result < 0) {
-		return result;
-	}
+	// system working set
+	SYSTEM_FILECACHE_INFORMATION info;
+	ZeroMemory(&info, sizeof(info));
+	info.MinimumWorkingSet = -1;
+	info.MaximumWorkingSet = -1;
+	NtSetSystemInformation(SystemFileCacheInformation, &info, sizeof(info));
 
-	command = MemoryPurgeStandbyList;
-	result = (int)NtSetSystemInformation(SystemMemoryListInformation, &command, sizeof(command));
-	if (result < 0) {
-		return result;
-	}
+	// working set
+	_SYSTEM_MEMORY_LIST_COMMAND command = MemoryEmptyWorkingSets;
+	NtSetSystemInformation(SystemMemoryListInformation, &command, sizeof(command));
 
+	// others are supported in nt >= 6.0 (vista+).
+	
+	// standby priority 0 list
 	command = MemoryPurgeLowPriorityStandbyList;
-	result = (int)NtSetSystemInformation(SystemMemoryListInformation, &command, sizeof(command));
-	if (result < 0) {
-		return result;
+	NtSetSystemInformation(SystemMemoryListInformation, &command, sizeof(command));
+
+	// standby list
+	command = MemoryPurgeStandbyList;
+	NtSetSystemInformation(SystemMemoryListInformation, &command, sizeof(command));
+
+	// modified page list
+	command = MemoryFlushModifiedList;
+	NtSetSystemInformation(SystemMemoryListInformation, &command, sizeof(command));
+}
+
+void memcleanManager::getSystemCacheInfo(SIZE_T* used, SIZE_T* total) {
+	
+	if (!NtQuerySystemInformation || !used || !total) {
+		return;
 	}
 
-	return 0;
+	SYSTEM_FILECACHE_INFORMATION info;
+	ZeroMemory(&info, sizeof(info));
+	NtQuerySystemInformation(SystemFileCacheInformation, &info, sizeof(info), NULL);
+
+	*used  = info.CurrentSize;
+	*total = info.PeakSize;
 }
 
 void memcleanManager::raiseMemCleanThread() {
@@ -247,7 +265,7 @@ void memcleanManager::raiseMemCleanThread() {
 						flushSystemBuffer();
 					}
 					if (memCleanSwitches[2]) {
-						purgeMemoryStandbyList();
+						cleanMemory_all();
 					}
 
 					lastCleanTime = currentTime;
@@ -281,7 +299,7 @@ void memcleanManager::raiseMemCleanThread() {
 						flushSystemBuffer();
 					}
 					if (memCleanSwitches[5]) {
-						purgeMemoryStandbyList();
+						cleanMemory_all();
 					}
 				}
 			}
@@ -293,12 +311,10 @@ void memcleanManager::raiseMemCleanThread() {
 }
 
 
-
 win32SystemManager win32SystemManager::systemManager;
 
 win32SystemManager::win32SystemManager() 
-	: hWnd(NULL), hInstance(NULL),
-	  hProgram(NULL), icon{} {}
+	: hWnd(NULL), hInstance(NULL), hProgram(NULL), icon{} {}
 
 win32SystemManager::~win32SystemManager() {
 	if (hProgram) {
